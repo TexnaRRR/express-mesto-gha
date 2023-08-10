@@ -22,7 +22,13 @@ async function getUserById(req, res) {
 
     res.send(user);
   } catch (err) {
+    if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Пользователь с таким id не найден' });
+    } else if (err.name === 'CastError') {
+      res.status(400).send({ message: 'Переданы некорректные данные о пользователе' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
@@ -55,7 +61,17 @@ async function updateUser(req, res) {
     );
     res.send(user);
   } catch (err) {
+    if (err.name === 'ValidationError') {
+      const message = Object.values(err.errors)
+        .map((error) => error.message)
+        .join('; ');
+
+      res.status(400).send({ message });
+    } else if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Пользователь с таким id не найден' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
@@ -70,7 +86,17 @@ async function updateAvatar(req, res) {
     );
     res.send(user);
   } catch (err) {
+    if (err.name === 'ValidationError') {
+      const message = Object.values(err.errors)
+        .map((error) => error.message)
+        .join('; ');
+
+      res.status(400).send({ message });
+    } else if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Пользователь с таким id не найден' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
