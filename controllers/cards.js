@@ -22,7 +22,7 @@ async function createCard(req, res) {
 
       res.status(400).send({ message });
     } else {
-      res.status(500).send({ message: err.message });
+      res.status(500).send({ message: 'Что-то пошло не так' });
     }
   }
 }
