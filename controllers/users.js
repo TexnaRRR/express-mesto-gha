@@ -1,13 +1,4 @@
 const { User } = require('../models/user');
-const NotFound = require('../errors/notFound');
-const {
-  OK_STATUS,
-  OK_CREATED_STATUS,
-  BAD_REQUEST_STATUS,
-  NOT_FOUND_STATUS,
-  INTERNAL_SERVER_STATUS,
-} = require('../errors/errors');
-
 
 async function getUsers(req, res) {
   try {
@@ -38,21 +29,17 @@ async function getUserById(req, res) {
 async function createUser(req, res) {
   try {
     const { name, about, avatar } = req.body;
-    if (!name || name.length < 2) {
-      res.status(BAD_REQUEST_STATUS).send({ message: 'Некорректные данные' });
-      return;
-    }
     const user = await User.create({ name, about, avatar });
     res.send(user);
   } catch (err) {
-      if (err instanceof mongoose.Error.ValidationError) {
+    if (err.name === 'ValidationError') {
       const message = Object.values(err.errors)
         .map((error) => error.message)
         .join('; ');
 
-      res.status(BAD_REQUEST_STATUS).send({ message });
+      res.status(400).send({ message });
     } else {
-      res.status(INTERNAL_SERVER_STATUS).send({ message: 'Что-то пошло не так' });
+    res.status(500).send({ message: err.message });
     }
   }
 }
