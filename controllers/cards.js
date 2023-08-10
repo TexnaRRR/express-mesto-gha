@@ -16,12 +16,15 @@ async function createCard(req, res) {
     const card = await Card.create({ name, link, owner: ownerId });
     res.send(card);
   } catch (err) {
-    if (err.name === "SomeErrorName") {
-      return res.status(400).send({
-        message: "Переданы некорректные данные в метод создания карточки",
-      });
-    }
+    if (err.name === 'ValidationError') {
+      const message = Object.values(err.errors)
+        .map((error) => error.message)
+        .join('; ');
+
+      res.status(400).send({ message });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
@@ -38,7 +41,13 @@ async function deleteCard(req, res) {
 
     res.send(card);
   } catch (err) {
+    if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Карточка не найдена' });
+    } else if (err.name === 'CastError') {
+      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
@@ -59,7 +68,13 @@ async function addLike(req, res) {
 
     res.send(card);
   } catch (err) {
+    if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Карточка не найдена' });
+    } else if (err.name === 'CastError') {
+      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
@@ -80,7 +95,13 @@ async function deleteLike(req, res) {
 
     res.send(card);
   } catch (err) {
+    if (err.message === 'Not found') {
+      res.status(404).send({ message: 'Карточка не найдена' });
+    } else if (err.name === 'CastError') {
+      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
+    } else {
     res.status(500).send({ message: err.message });
+    }
   }
 }
 
