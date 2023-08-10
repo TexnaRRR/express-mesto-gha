@@ -1,11 +1,20 @@
 const { User } = require('../models/user');
+const NotFound = require('../errors/notFound');
+const {
+  OK_STATUS,
+  OK_CREATED_STATUS,
+  BAD_REQUEST_STATUS,
+  NOT_FOUND_STATUS,
+  INTERNAL_SERVER_STATUS,
+} = require('../errors/errors');
+
 
 async function getUsers(req, res) {
   try {
     const users = await User.find({});
     res.send(users);
   } catch (err) {
-   res.status(500).send({ message: err.message });
+    res.status(500).send({ message: err.message });
   }
 }
 
@@ -22,12 +31,7 @@ async function getUserById(req, res) {
 
     res.send(user);
   } catch (err) {
-    if (err.name === "SomeErrorName") {
-      return res.status(400).send({
-        message: "Некорректный id карточки",
-      });
-    }
-    return res.status(500).send({ message: err.message });
+    res.status(500).send({ message: err.message });
   }
 }
 
@@ -37,12 +41,15 @@ async function createUser(req, res) {
     const user = await User.create({ name, about, avatar });
     res.send(user);
   } catch (err) {
-    if (err.name === "SomeErrorName") {
-      return res.status(400).send({
-        message: "Переданы некорректные данные в метод создания пользователя",
-      });
+      if (err instanceof mongoose.Error.ValidationError) {
+      const message = Object.values(err.errors)
+        .map((error) => error.message)
+        .join('; ');
+
+      res.status(BAD_REQUEST_STATUS).send({ message });
+    } else {
+      res.status(INTERNAL_SERVER_STATUS).send({ message: 'Что-то пошло не так' });
     }
-    return res.status(500).send({ message: err.message });
   }
 }
 
@@ -57,12 +64,7 @@ async function updateUser(req, res) {
     );
     res.send(user);
   } catch (err) {
-    if (err.name === "SomeErrorName") {
-      return res.status(400).send({
-        message: "Переданы некорректные данные в метод обновления профиля",
-      });
-    }
-    return res.status(500).send({ message: err.message });
+    res.status(500).send({ message: err.message });
   }
 }
 
@@ -77,12 +79,7 @@ async function updateAvatar(req, res) {
     );
     res.send(user);
   } catch (err) {
-    if (err.name === "SomeErrorName") {
-      return res.status(400).send({
-        message: "Переданы некорректные данные в метод обновления аватар",
-      });
-    }
-    return res.status(500).send({ message: err.message });
+    res.status(500).send({ message: err.message });
   }
 }
 
