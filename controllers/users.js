@@ -38,6 +38,10 @@ async function getUserById(req, res) {
 async function createUser(req, res) {
   try {
     const { name, about, avatar } = req.body;
+    if (!name || name.length < 2) {
+      res.status(BAD_REQUEST_STATUS).send({ message: 'Некорректные данные' });
+      return;
+    }
     const user = await User.create({ name, about, avatar });
     res.send(user);
   } catch (err) {
