@@ -14,12 +14,6 @@ async function getUserById(req, res) {
     const { userId } = req.params;
     const user = await User.findById(userId);
 
-    if (!user) {
-      const error = new Error('Пользователь с данным id не найден');
-      error.name = 'NotFoundError';
-      throw error;
-    }
-
     res.send(user);
   } catch (err) {
     if (err.message === 'Not found') {
