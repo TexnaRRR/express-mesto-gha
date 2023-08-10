@@ -12,8 +12,7 @@ async function getCards(req, res) {
 async function createCard(req, res) {
   try {
     const { name, link } = req.body;
-    const ownerId = req.user._id;
-    const card = await Card.create({ name, link, owner: ownerId });
+    const card = await Card.create({ name, link, owner });
     res.send(card);
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -23,7 +22,7 @@ async function createCard(req, res) {
 
       res.status(400).send({ message });
     } else {
-      res.status(500).send({ message: 'Что-то пошло не так' });
+      res.status(500).send({ message: err.message });
     }
   }
 }
