@@ -5,6 +5,11 @@ async function getUsers(req, res) {
     const users = await User.find({});
     res.send(users);
   } catch (err) {
+    if (err.name === "SomeErrorName") {
+      return res.status(400).send({
+        message: "Переданы некорректные данные в метод создания пользователя",
+      });
+    }
     res.status(500).send({ message: err.message });
   }
 }
