@@ -5,7 +5,7 @@ async function getCards(req, res) {
     const cards = await Card.find({});
     res.send(cards);
   } catch (err) {
-    res.status(500).send({ message: err.message });
+    res.status(500).send({ message: 'Что-то пошло не так' });
   }
 }
 
@@ -23,7 +23,7 @@ async function createCard(req, res) {
 
       res.status(400).send({ message });
     } else {
-    res.status(500).send({ message: err.message });
+      res.status(500).send({ message: 'Что-то пошло не так' });
     }
   }
 }
@@ -61,16 +61,12 @@ async function addLike(req, res) {
     );
 
     if (!card) {
-      const error = new Error('Карточка не найдена');
-      error.name = 'NotFoundError';
-      throw error;
+      res.status(404).send({ message: 'Карточка не найдена' });
     }
 
     res.send(card);
   } catch (err) {
-    if (err.message === 'Not found') {
-      res.status(404).send({ message: 'Карточка не найдена' });
-    } else if (err.name === 'CastError') {
+    if (err.name === 'CastError') {
       res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
     } else {
     res.status(500).send({ message: err.message });
@@ -80,24 +76,16 @@ async function addLike(req, res) {
 
 async function deleteLike(req, res) {
   try {
-    const userId = req.user._id;
-    const card = await Card.findByIdAndUpdate(
-      req.params.cardId,
-      { $pull: { likes: userId } },
-      { new: true },
-    );
+    const { cardId } = req.params;
+    const card = await Card.findByIdAndDelete(cardId);
 
     if (!card) {
-      const error = new Error('Карточка не найдена');
-      error.name = 'NotFoundError';
-      throw error;
+      res.status(404).send({ message: 'Карточка не найдена' });
     }
 
     res.send(card);
   } catch (err) {
-    if (err.message === 'Not found') {
-      res.status(404).send({ message: 'Карточка не найдена' });
-    } else if (err.name === 'CastError') {
+    if (err.name === 'CastError') {
       res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
     } else {
     res.status(500).send({ message: err.message });
