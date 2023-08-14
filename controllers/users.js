@@ -32,7 +32,7 @@ async function createUser(req, res) {
   try {
     const { name, about, avatar } = req.body;
     const user = await User.create({ name, about, avatar });
-    res.send(user);
+    res.status(201).send({ data: user });
   } catch (err) {
     if (err.name === 'ValidationError') {
       const message = Object.values(err.errors)
@@ -63,7 +63,7 @@ async function updateUser(req, res) {
         .join('; ');
 
       res.status(400).send({ message });
-    } else if (err.message === 'Not found') {
+    } else if (err.message && ~err.message.indexOf('Cast to Object failed')) {
       res.status(404).send({ message: 'Пользователь с таким id не найден' });
     } else {
     res.status(500).send({ message: err.message });
@@ -88,7 +88,7 @@ async function updateAvatar(req, res) {
         .join('; ');
 
       res.status(400).send({ message });
-    } else if (err.message === 'Not found') {
+    } else if (err.message && ~err.message.indexOf('Cast to Object failed')) {
       res.status(404).send({ message: 'Пользователь с таким id не найден' });
     } else {
     res.status(500).send({ message: err.message });
