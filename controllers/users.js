@@ -55,6 +55,9 @@ async function updateUser(req, res) {
       { name, about },
       { new: true, runValidators: true },
     );
+    if (!user) {
+      res.status(404).send({ message: 'Пользователь не найден' });
+    }
     res.send(user);
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -63,8 +66,6 @@ async function updateUser(req, res) {
         .join('; ');
 
       res.status(400).send({ message });
-    } else if (err.message && ~err.message.indexOf('Cast to Object failed')) {
-      res.status(404).send({ message: 'Пользователь с таким id не найден' });
     } else {
     res.status(500).send({ message: err.message });
     }
@@ -80,6 +81,9 @@ async function updateAvatar(req, res) {
       { avatar },
       { new: true },
     );
+    if (!user) {
+      res.status(404).send({ message: 'Пользователь не найден' });
+    }
     res.send(user);
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -88,8 +92,6 @@ async function updateAvatar(req, res) {
         .join('; ');
 
       res.status(400).send({ message });
-    } else if (err.message && ~err.message.indexOf('Cast to Object failed')) {
-      res.status(404).send({ message: 'Пользователь с таким id не найден' });
     } else {
     res.status(500).send({ message: err.message });
     }
