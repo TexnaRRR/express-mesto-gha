@@ -1,27 +1,4 @@
-const { NODE_ENV, JWT_SECRET } = process.env;
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { User } = require('../models/user');
-
-function login(req, res, next) {
-  const { email, password } = req.body;
-  return User.findUserByCredentials(email, password)
-    .then((user) => {
-      const token = jwt.sign(
-        { _id: user._id },
-        NODE_ENV ? JWT_SECRET : 'secretkey',
-        { expiresIn: '7d' },
-      );
-      res
-        .cookie('jwt', token, {
-          maxAge: 3600000 * 24 * 7,
-          httpOnly: true,
-        })
-        .send({ jwt: token })
-        .end();
-    })
-    .catch(next);
-}
 
 async function getUsers(req, res) {
   try {
@@ -52,24 +29,12 @@ async function getUserById(req, res) {
 }
 
 async function createUser(req, res) {
-  const {
-    email, password, name, about, avatar,
-  } = req.body;
   try {
-    const hashPassword = await bcrypt.hash(password, 10);
-    const user = await User.create({
-      email, password: hashPassword, name, about, avatar,
-    });
-    res.status(200).send({
-      user: {
-        email: user.email,
-        name: user.name,
-        about: user.about,
-        avatar: user.avatar,
-      },
-    });
+    const { name, about, avatar } = req.body;
+    const user = await User.create({ name, about, avatar });
+    res.status(201).send({ data: user });
   } catch (err) {
-    if (err.name === 'MongoServerError' && err.code === 11000) {
+    if (err.name === 'ValidationError') {
       const message = Object.values(err.errors)
         .map((error) => error.message)
         .join('; ');
@@ -107,28 +72,6 @@ async function updateUser(req, res) {
   }
 }
 
-async function getCurrentUser(req, res) {
-  try {
-    const userId = req.user._id;
-    const user = await User.findById(userId);
-    console.log(userId);
-
-    if (!user) {
-      res.status(404).send({ message: 'Пользователь с таким id не найден' });
-    }
-
-    res.send(user);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(400).send({ message: 'Неверный формат данных в запросе' });
-      return;
-   } else {
-      res.status(500).send({ message: err.message });
-      }
-  }
-}
-
-
 async function updateAvatar(req, res) {
   try {
     const userId = req.user._id;
@@ -136,7 +79,7 @@ async function updateAvatar(req, res) {
     const user = await User.findByIdAndUpdate(
       userId,
       { avatar },
-      { new: true, runValidators: true },
+      { new: true },
     );
     if (!user) {
       res.status(404).send({ message: 'Пользователь не найден' });
@@ -155,4 +98,4 @@ async function updateAvatar(req, res) {
   }
 }
 
-module.exports = { login, getCurrentUser, getUsers, getUserById, createUser, updateUser, updateAvatar };
+module.exports = { getUsers, getUserById, createUser, updateUser, updateAvatar };
