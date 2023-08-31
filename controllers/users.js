@@ -1,101 +1,93 @@
-const { User } = require('../models/user');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const User = require('../models/user');
+const DocumentNotFoundError = require('../errors/DocumentNotFoundError');
+const ConflictError = require('../errors/ConflictError');
 
-async function getUsers(req, res) {
-  try {
-    const users = await User.find({});
-    res.send(users);
-  } catch (err) {
-    res.status(500).send({ message: err.message });
-  }
-}
+module.exports.getUsers = (req, res, next) => {
+  User.find()
+    .then((user) => res.send({ data: user }))
+    .catch(next);
+};
 
-async function getUserById(req, res) {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
+module.exports.getUser = (req, res, next) => {
+  const { userId } = req.params;
 
-    if (!user) {
-      res.status(404).send({ message: 'Пользователь с таким id не найден' });
-    }
+  User.findById(userId)
+    .orFail(new DocumentNotFoundError('Запрашиваемый пользователь не найден'))
+    .then((user) => res.send({ data: user }))
+    .catch(next);
+};
 
-    res.send(user);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(400).send({ message: 'Переданы некорректные данные о пользователе' });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
+module.exports.createUser = (req, res, next) => {
+  const {
+    email, password, name, about, avatar,
+  } = req.body;
 
-async function createUser(req, res) {
-  try {
-    const { name, about, avatar } = req.body;
-    const user = await User.create({ name, about, avatar });
-    res.status(201).send({ data: user });
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      const message = Object.values(err.errors)
-        .map((error) => error.message)
-        .join('; ');
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({
+      email,
+      password: hash,
+      name,
+      about,
+      avatar,
+    }))
+    .then((user) => res.send({
+      data: user.toObject({ useProjection: true }),
+    }))
+    .catch((err) => {
+      if (err.code === 11000) {
+        return next(new ConflictError('Пользователь с таким email уже зарегистрирован'));
+      }
+      return next(err);
+    });
+};
 
-      res.status(400).send({ message });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
 
-async function updateUser(req, res) {
-  try {
-    const userId = req.user._id;
-    const { name, about } = req.body;
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { name, about },
-      { new: true, runValidators: true },
-    );
-    if (!user) {
-      res.status(404).send({ message: 'Пользователь не найден' });
-    }
-    res.send(user);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      const message = Object.values(err.errors)
-        .map((error) => error.message)
-        .join('; ');
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign(
+        { _id: user._id },
+        'secret-key',
+        { expiresIn: '7d' },
+      );
+      return res
+        .cookie('jwt', token, {
+          maxAge: 3600000 * 24 * 7,
+          httpOnly: true,
+        })
+        .send({ token });
+    })
+    .catch(next);
+};
 
-      res.status(400).send({ message });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
+module.exports.getAboutMe = (req, res, next) => {
+  User.findById(req.user._id)
+    .then((user) => {
+      res.send(user);
+    })
+    .catch(next);
+};
 
-async function updateAvatar(req, res) {
-  try {
-    const userId = req.user._id;
-    const { avatar } = req.body;
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { avatar },
-      { new: true },
-    );
-    if (!user) {
-      res.status(404).send({ message: 'Пользователь не найден' });
-    }
-    res.send(user);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      const message = Object.values(err.errors)
-        .map((error) => error.message)
-        .join('; ');
+const updateUser = (req, res, data) => {
+  const { _id } = req.user;
 
-      res.status(400).send({ message });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
+  return User.findByIdAndUpdate(
+    _id,
+    data,
+    { new: true, runValidators: true },
+  )
+    .then((user) => res.send({ data: user }));
+};
 
-module.exports = { getUsers, getUserById, createUser, updateUser, updateAvatar };
+module.exports.updateUserData = (req, res, next) => {
+  const { name, about } = req.body;
+  updateUser(req, res, { name, about }).catch(next);
+};
+
+module.exports.updateUserAvatar = (req, res, next) => {
+  const { avatar } = req.body;
+  updateUser(req, res, { avatar }).catch(next);
+};

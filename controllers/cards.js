@@ -1,96 +1,53 @@
-const { Card } = require('../models/card');
+const Card = require('../models/card');
+const DocumentNotFoundError = require('../errors/DocumentNotFoundError');
+const ForbiddenError = require('../errors/ForbiddenError');
 
-async function getCards(req, res) {
-  try {
-    const cards = await Card.find({});
-    res.send(cards);
-  } catch (err) {
-    res.status(500).send({ message: 'Что-то пошло не так' });
-  }
-}
+module.exports.getCards = (req, res, next) => {
+  Card.find()
+    .populate('owner')
+    .populate('likes')
+    .then((cards) => res.send({ data: cards }))
+    .catch(next);
+};
 
-async function createCard(req, res) {
-  try {
-    const { name, link } = req.body;
-    const ownerId = req.user._id;
-    const card = await Card.create({ name, link, owner: ownerId });
-      res.status(201).send({ data: card });
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      const message = Object.values(err.errors)
-        .map((error) => error.message)
-        .join('; ');
+module.exports.createCard = (req, res, next) => {
+  const { name, link } = req.body;
+  const { _id } = req.user;
 
-      res.status(400).send({ message });
-    } else {
-      res.status(500).send({ message: 'Что-то пошло не так' });
-    }
-  }
-}
+  Card.create({ name, link, owner: _id })
+    .then((card) => res.send({ data: card }))
+    .catch(next);
+};
 
-async function deleteCard(req, res) {
-  try {
-    const { cardId } = req.params;
-    const card = await Card.findByIdAndDelete(cardId);
+module.exports.deleteCard = (req, res, next) => {
+  const { cardId } = req.params;
 
-    if (!card) {
-      res.status(404).send({ message: 'Карточка не найдена' });
-    }
+  Card.findById(cardId)
+    .orFail(new DocumentNotFoundError('Запрашиваемая карточка не найдена'))
+    .then((card) => {
+      if (!card.owner.equals(req.user._id)) {
+        return Promise.reject(new ForbiddenError('Недостаточно прав'));
+      }
+      return Card.findByIdAndDelete(cardId)
+        .then(() => res.send({ data: 'Карточка успешно удалена' }));
+    })
+    .catch(next);
+};
 
-    res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
+const handleCardLike = (req, res, data) => Card.findByIdAndUpdate(
+  req.params.cardId,
+  data,
+  { new: true },
+)
+  .populate('owner')
+  .populate('likes')
+  .orFail(new DocumentNotFoundError('Запрашиваемая карточка не найдена'))
+  .then((card) => res.send({ data: card }));
 
-async function addLike(req, res) {
-  try {
-    const userId = req.user._id;
-    const card = await Card.findByIdAndUpdate(
-      req.params.cardId,
-      { $addToSet: { likes: userId } },
-      { new: true },
-    );
+module.exports.likeCard = (req, res, next) => {
+  handleCardLike(req, res, { $addToSet: { likes: req.user._id } }).catch(next);
+};
 
-    if (!card) {
-      res.status(404).send({ message: 'Карточка не найдена' });
-    }
-
-    res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
-
-async function deleteLike(req, res) {
-  try {
-    const userId = req.user._id;
-    const card = await Card.findByIdAndUpdate(
-      req.params.cardId,
-      { $pull: { likes: userId } },
-      { new: true },
-    );
-
-    if (!card) {
-      res.status(404).send({ message: 'Карточка не найдена' });
-    }
-
-    res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      res.status(400).send({ message: 'Переданы некорректные данные о карточке' });
-    } else {
-    res.status(500).send({ message: err.message });
-    }
-  }
-}
-
-module.exports = { getCards, createCard, deleteCard, addLike, deleteLike };
+module.exports.dislikeCard = (req, res, next) => {
+  handleCardLike(req, res, { $pull: { likes: req.user._id } }).catch(next);
+};

@@ -11,6 +11,11 @@ const cardSchema = new mongoose.Schema(
     link: {
       type: String,
       required: true,
+      validate: {
+        validator(v) {
+          return validator.isURL(v);
+        },
+      },
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -30,9 +35,6 @@ const cardSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-  },
-  {
-    versionKey: false,
   },
 );
 
