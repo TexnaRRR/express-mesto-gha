@@ -1,53 +1,89 @@
 const Card = require('../models/card');
-const DocumentNotFoundError = require('../errors/DocumentNotFoundError');
-const ForbiddenError = require('../errors/ForbiddenError');
+const Error404 = require('../errors/404');
+const Error403 = require('../errors/403');
 
-module.exports.getCards = (req, res, next) => {
-  Card.find()
-    .populate('owner')
-    .populate('likes')
-    .then((cards) => res.send({ data: cards }))
-    .catch(next);
+const getCards = async (req, res, next) => {
+  try {
+    const cards = await Card.find({});
+    res.send(cards);
+  } catch (err) {
+    next(err);
+  }
 };
 
-module.exports.createCard = (req, res, next) => {
-  const { name, link } = req.body;
-  const { _id } = req.user;
-
-  Card.create({ name, link, owner: _id })
-  .then((card) => res.status(201).send(card))
-    .catch(next);
+const createCard = async (req, res, next) => {
+  try {
+    const { name, link } = req.body;
+    const card = await Card.create({ name, link, owner: req.user._id });
+    if (!card) {
+      throw new Error404('Карточка не создана');
+    } else {
+      res.status(201).send(card);
+    }
+  } catch (err) {
+    next(err);
+  }
 };
 
-module.exports.deleteCard = (req, res, next) => {
-  const { cardId } = req.params;
+const deleteCard = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const card = await Card.findById(id);
+    if (!card) {
+      throw new Error404('Карточка не найдена');
+    }
 
-  Card.findById(cardId)
-    .orFail(new DocumentNotFoundError('Запрашиваемая карточка не найдена'))
-    .then((card) => {
-      if (!card.owner.equals(req.user._id)) {
-        return Promise.reject(new ForbiddenError('Недостаточно прав'));
-      }
-      return Card.findByIdAndDelete(cardId)
-        .then(() => res.send({ data: 'Карточка успешно удалена' }));
-    })
-    .catch(next);
+    if (card.owner.toString() !== userId) {
+      throw new Error403('Нет прав на удаление карточки');
+    }
+
+    await Card.findByIdAndRemove(card._id);
+
+    res.send({ message: 'Карточка удалена' });
+  } catch (err) {
+    next(err);
+  }
 };
 
-const handleCardLike = (req, res, data) => Card.findByIdAndUpdate(
-  req.params.cardId,
-  data,
-  { new: true },
-)
-  .populate('owner')
-  .populate('likes')
-  .orFail(new DocumentNotFoundError('Запрашиваемая карточка не найдена'))
-  .then((card) => res.send({ data: card }));
-
-module.exports.likeCard = (req, res, next) => {
-  handleCardLike(req, res, { $addToSet: { likes: req.user._id } }).catch(next);
+const addLike = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const card = await Card.findByIdAndUpdate(
+      id,
+      { $addToSet: { likes: req.user._id } },
+      { new: true },
+    );
+    if (!card) {
+      throw new Error404('Карточка не найдена');
+    }
+    res.send(card);
+  } catch (err) {
+    next(err);
+  }
 };
 
-module.exports.dislikeCard = (req, res, next) => {
-  handleCardLike(req, res, { $pull: { likes: req.user._id } }).catch(next);
+const removeLike = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const card = await Card.findByIdAndUpdate(
+      id,
+      { $pull: { likes: req.user._id } },
+      { new: true },
+    );
+    if (!card) {
+      throw new Error404('Карточка не найдена');
+    }
+    res.send(card);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  getCards,
+  createCard,
+  deleteCard,
+  addLike,
+  removeLike,
 };

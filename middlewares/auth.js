@@ -1,22 +1,20 @@
 const jwt = require('jsonwebtoken');
-const UnauthorizedError = require('../errors/UnauthorizedError');
+const Error401 = require('../errors/401');
 
-module.exports = (req, res, next) => {
+const middlewareAuth = (req, res, next) => {
   const token = req.cookies.jwt;
-
   if (!token) {
-    throw new UnauthorizedError('Необходима авторизация');
+    const noToken = new Error401('Токен отстутствует');
+    next(noToken);
+    return;
   }
-
-  let payload;
-
   try {
-    payload = jwt.verify(token, 'secret-key');
-  } catch (err) {
-    throw new UnauthorizedError('Необходима авторизация');
+    req.user = jwt.verify(token, 'FJeq0bP5YA}j#AJnGZWzrB*JY%lTt6');
+    next();
+  } catch {
+    const badToken = new Error401('Токен недействителен');
+    next(badToken);
   }
-
-  req.user = payload;
-
-  next();
 };
+
+module.exports = middlewareAuth;
