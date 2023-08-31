@@ -6,7 +6,7 @@ module.exports.getCards = (req, res, next) => {
   Card.find()
     .populate('owner')
     .populate('likes')
-    .then((cards) => res.status(200).send(cards))
+    .then((cards) => res.send({ data: cards }))
     .catch(next);
 };
 
@@ -15,7 +15,7 @@ module.exports.createCard = (req, res, next) => {
   const { _id } = req.user;
 
   Card.create({ name, link, owner: _id })
-    .then((card) => res.send({ data: card }))
+  .then((card) => res.status(201).send(card))
     .catch(next);
 };
 
